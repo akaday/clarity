@@ -11,6 +11,8 @@ import encode from "./encode";
 
 export let state: PointerState[] = [];
 let timeout: number = null;
+let activeTouchPointId = 0;
+const activeTouchPointIds = new Set<number>();
 
 export function start(): void {
     reset();
@@ -58,8 +60,26 @@ function touch(event: Event, root: Node, evt: TouchEvent): void {
             x = x && frame ? x + Math.round(frame.offsetLeft) : x;
             y = y && frame ? y + Math.round(frame.offsetTop) : y;
 
+            // We cannot rely on identifier to determine primary touch as its value doesn't always start with 0.
+            // Safari/Webkit uses the address of the UITouch object as the identifier value for each touch point.
+            const id = "identifier" in entry ? entry["identifier"] : undefined;
+
+            switch(event) {
+                case Event.TouchStart:
+                    if (activeTouchPointIds.size === 0) {
+                        activeTouchPointId = id;
+                    }
+                    activeTouchPointIds.add(id);
+                    break;
+                case Event.TouchEnd:
+                case Event.TouchCancel:
+                    activeTouchPointIds.delete(id);
+                    break;
+            }
+            const isPrimary = activeTouchPointId === id;
+
             // Check for null values before processing this event
-            if (x !== null && y !== null) { handler({ time: t, event, data: { target: target(evt), x, y } }); }
+            if (x !== null && y !== null) { handler({ time: t, event, data: { target: target(evt), x, y, id, isPrimary } }); }
         }
     }
 }

@@ -70,7 +70,17 @@ export const enum Event {
     Snapshot = 43,
     Animation = 44,
     StyleSheetAdoption = 45,
-    StyleSheetUpdate = 46
+    StyleSheetUpdate = 46,
+
+    // Apps specific events
+    WebViewDiscover = 100,
+    WebViewMutation = 101,
+    MutationError = 102,
+    FragmentVisibility = 103,
+    Keystrokes = 104,
+    BackGesture = 105,
+    WebViewStatus = 106,
+    AppInstallReferrer = 107
 }
 
 export const enum Metric {
@@ -114,7 +124,10 @@ export const enum Metric {
     DeviceMemory = 34,
     Electron = 35,
     ConstructedStyles = 36,
-    InteractionNextPaint = 37,
+/**
+ * @deprecated Move it to dimension as it'll report only last value
+ */
+    InteractionNextPaint = 37
 }
 
 export const enum Dimension {
@@ -153,7 +166,9 @@ export const enum Dimension {
     InitialScrollBottom = 32,
     AncestorOrigins = 33,
     Timezone = 34,
-    TimezoneOffset = 35
+    TimezoneOffset = 35,
+    Consent = 36,
+    InteractionNextPaint = 37
 }
 
 export const enum Check {
@@ -237,7 +252,7 @@ export const enum Setting {
     MinUploadDelay = 100, // Minimum time before we are ready to flush events to the server
     MaxUploadDelay = 30 * Time.Second, // Do flush out payload once every 30s,
     ExtractLimit = 10000, // Do not extract more than 10000 characters
-    ChecksumPrecision = 24, // n-bit integer to represent token hash
+    ChecksumPrecision = 28, // n-bit integer to represent token hash
     UploadTimeout = 15000 // Timeout in ms for XHR requests
 }
 
@@ -460,4 +475,13 @@ export interface UploadData {
 export interface ClaritySignal {
     type: string
     value?: number
+}
+
+export interface PerformanceEventTiming extends PerformanceEntry {
+    duration: DOMHighResTimeStamp;
+    interactionId: number;
+}
+export interface Interaction {
+    id: number;
+    latency: number;
 }

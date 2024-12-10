@@ -8,6 +8,7 @@ import * as scrub from "@src/core/scrub";
 import * as dimension from "@src/data/dimension";
 import * as metric from "@src/data/metric";
 import { set } from "@src/data/variable";
+import * as trackConsent from "@src/data/consent";
 
 export let data: Metadata = null;
 export let callbacks: MetadataCallbackOptions[] = [];
@@ -74,6 +75,9 @@ export function start(): void {
     if (value) { set(key, value); }
   }
 
+  // Track consent config
+  trackConsent.config(config.track);
+
   // Track ids using a cookie if configuration allows it
   track(u);
 }
@@ -130,6 +134,8 @@ export function consent(status: boolean = true): void {
   if (core.active()) {
     config.track = true;
     track(user(), BooleanFlag.True);
+    save();
+    trackConsent.consent();
   }
 }
 
@@ -148,12 +154,16 @@ function tab(): string {
   return id;
 }
 
+export function callback(): void {
+  let upgrade = config.lean ? BooleanFlag.False : BooleanFlag.True;
+  processCallback(upgrade);
+}
+
 export function save(): void {
   if (!data) return;
   let ts = Math.round(Date.now());
   let upload = config.upload && typeof config.upload === Constant.String ? (config.upload as string).replace(Constant.HTTPS, Constant.Empty) : Constant.Empty;
   let upgrade = config.lean ? BooleanFlag.False : BooleanFlag.True;
-  processCallback(upgrade);
   setCookie(Constant.SessionKey, [data.sessionId, ts, data.pageNum, upgrade, upload].join(Constant.Pipe), Setting.SessionExpire);
 }
 
@@ -203,7 +213,7 @@ export function shortid(): string {
 
 function session(): Session {
   let output: Session = { session: shortid(), ts: Math.round(Date.now()), count: 1, upgrade: null, upload: Constant.Empty };
-  let value = getCookie(Constant.SessionKey);
+  let value = getCookie(Constant.SessionKey, !config.includeSubdomains);
   if (value) {
     let parts = value.split(Constant.Pipe);
     // Making it backward & forward compatible by using greater than comparison (v0.6.21)
@@ -224,7 +234,7 @@ function num(string: string, base: number = 10): number {
 
 function user(): User {
   let output: User = { id: shortid(), version: 0, expiry: null, consent: BooleanFlag.False, dob: 0 };
-  let cookie = getCookie(Constant.CookieKey);
+  let cookie = getCookie(Constant.CookieKey, !config.includeSubdomains);
   if (cookie && cookie.length > 0) {
     // Splitting and looking up first part for forward compatibility, in case we wish to store additional information in a cookie
     let parts = cookie.split(Constant.Pipe);
@@ -256,7 +266,7 @@ function user(): User {
   return output;
 }
 
-function getCookie(key: string): string {
+function getCookie(key: string, limit = false): string {
   if (supported(document, Constant.Cookie)) {
     let cookies: string[] = document.cookie.split(Constant.Semicolon);
     if (cookies) {
@@ -273,6 +283,13 @@ function getCookie(key: string): string {
 
           while (isEncoded) {
             [isEncoded, decodedValue] = decodeCookieValue(decodedValue);
+          }
+
+          // If we are limiting cookies, check if the cookie value is limited
+          if (limit) {
+            return decodedValue.endsWith(`${Constant.Tilde}1`)
+              ? decodedValue.substring(0, decodedValue.length - 2)
+              : null;
           }
 
           return decodedValue;
